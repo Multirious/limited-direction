@@ -1,10 +1,15 @@
-use turtle::{Color, Turtle};
+fn nearest_multiple(n: f64, multiple: f64) -> f64 {
+    let mut result = n.abs() + multiple / 2.0;
+    result -= result % multiple;
+    result *= if n > 0.0 { 1.0 } else { -1.0 };
+    result
+}
 
 /// Meaning of:
 ///  - Primary is the straight walking part
 ///  - Secondary is the diagonal walking part
 #[derive(Debug)]
-pub struct Walk8 {
+pub struct RigidWalk {
     primary_angle: f64,
     secondary_angle: f64,
 
@@ -17,24 +22,17 @@ pub struct Walk8 {
     last_secondary_distance: f64,
 }
 
-impl Walk8 {
+impl RigidWalk {
     /// `angle` angle of direction to acheive in radian
     /// `displacement` is the displacement to achieve.
     /// `offset` is amount of distance possible tangent offset to main "line".
-    pub fn from_angle(angle: f64, displacement: f64, offset: f64) -> Walk8 {
-        fn nearest_multiple(n: f64, multiple: f64) -> f64 {
-            let mut result = n.abs() + multiple / 2.0;
-            result -= result % multiple;
-            result *= if n > 0.0 { 1.0 } else { -1.0 };
-            result
-        }
-
-        use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, TAU};
-
-        let angle = angle % TAU;
-        let primary_angle = nearest_multiple(angle, FRAC_PI_2);
-        let secondary_angle = nearest_multiple(angle - FRAC_PI_4, FRAC_PI_2) + FRAC_PI_4;
-
+    pub fn new(
+        primary_angle: f64,
+        secondary_angle: f64,
+        angle: f64,
+        displacement: f64,
+        offset: f64,
+    ) -> RigidWalk {
         let primary_angle_rel = (primary_angle - angle).abs();
         let secondary_angle_rel = (secondary_angle - angle).abs();
 
@@ -51,7 +49,7 @@ impl Walk8 {
         let last_primary_distance = last_offset / primary_angle_rel.sin();
         let last_secondary_distance = last_offset / secondary_angle_rel.sin();
 
-        Walk8 {
+        RigidWalk {
             primary_angle,
             secondary_angle,
             secondary_segment_distance,
@@ -63,7 +61,7 @@ impl Walk8 {
     }
 
     pub fn total_distance(&self) -> f64 {
-        let Walk8 {
+        let RigidWalk {
             secondary_segment_distance,
             primary_segment_distance,
             times,
@@ -77,8 +75,16 @@ impl Walk8 {
     }
 
     /// `start_primary` if you wanted to start algorithm at primary angle
-    pub fn iter_full(&self, start_primary: bool) -> Walk8IterFull<'_> {
-        Walk8IterFull::new(self, start_primary)
+    pub fn iter_full(&self, start_primary: bool) -> RigidWalkIterFull<'_> {
+        RigidWalkIterFull::new(self, start_primary)
+    }
+
+    pub fn walk8(angle: f64, displacement: f64, offset: f64) -> RigidWalk {
+        use std::f64::consts::{FRAC_PI_2, FRAC_PI_4};
+
+        let primary_angle = nearest_multiple(angle, FRAC_PI_2);
+        let secondary_angle = nearest_multiple(angle - FRAC_PI_4, FRAC_PI_2) + FRAC_PI_4;
+        RigidWalk::new(primary_angle, secondary_angle, angle, displacement, offset)
     }
 }
 
@@ -92,19 +98,19 @@ enum WalkIterState {
     Stop,
 }
 
-pub struct Walk8IterFull<'a> {
-    walk: &'a Walk8,
+pub struct RigidWalkIterFull<'a> {
+    walk: &'a RigidWalk,
     state: WalkIterState,
     start_primary: bool,
     switch: bool,
     n_left: u32,
 }
 
-impl<'a> Walk8IterFull<'a> {
+impl<'a> RigidWalkIterFull<'a> {
     /// `start_primary` if you wanted to start algorithm at primary angle
-    pub fn new(walk: &'a Walk8, start_primary: bool) -> Walk8IterFull<'a> {
-        Walk8IterFull {
-            n_left: walk.times.saturating_sub(1),
+    pub fn new(walk: &'a RigidWalk, start_primary: bool) -> RigidWalkIterFull<'a> {
+        RigidWalkIterFull {
+            n_left: walk.times,
             switch: start_primary,
             start_primary,
             walk,
@@ -113,7 +119,7 @@ impl<'a> Walk8IterFull<'a> {
     }
 }
 
-impl<'a> Iterator for Walk8IterFull<'a> {
+impl<'a> Iterator for RigidWalkIterFull<'a> {
     type Item = WalkAct;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -160,6 +166,17 @@ impl<'a> Iterator for Walk8IterFull<'a> {
         }
         let (angle, distance) = match self.state {
             WalkIterState::MainStart => {
+                if self.n_left == 0 {
+                    self.state = WalkIterState::LastEnd;
+                    let (angle, distance) = if self.start_primary {
+                        self.switch = false;
+                        value!(last_primary)
+                    } else {
+                        self.switch = true;
+                        value!(last_secondary)
+                    };
+                    return Some(WalkAct { angle, distance });
+                }
                 self.state = WalkIterState::MainMiddle;
                 if self.start_primary {
                     value!(primary)
@@ -168,13 +185,11 @@ impl<'a> Iterator for Walk8IterFull<'a> {
                 }
             }
             WalkIterState::MainMiddle => {
-                self.n_left = match self.n_left.checked_sub(1) {
-                    Some(n) => n,
-                    None => {
-                        self.state = WalkIterState::MainEnd;
-                        return self.next();
-                    }
-                };
+                self.n_left = self.n_left - 1;
+                if self.n_left == 0 {
+                    self.state = WalkIterState::MainEnd;
+                    return self.next();
+                }
                 let switch = self.switch;
                 self.switch = !self.switch;
                 if switch {
@@ -208,41 +223,4 @@ impl<'a> Iterator for Walk8IterFull<'a> {
 pub struct WalkAct {
     pub angle: f64,
     pub distance: f64,
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn visualize() {
-        let mut turtle = Turtle::new();
-        let displacement = 300.0;
-
-        turtle.set_speed("instant");
-        turtle.use_radians();
-        for angle in (0..360).step_by(1) {
-            let angle = (angle as f64).to_radians();
-            turtle.set_heading(angle);
-            turtle.pen_down();
-            turtle.set_pen_color(Color::rgb(200., 200., 200.));
-            turtle.forward(displacement);
-            turtle.home();
-
-            let walk = Walk8::from_angle(angle, displacement, 1.);
-            render_walk(&mut turtle, walk);
-            turtle.pen_up();
-            turtle.home();
-            // turtle.clear()
-        }
-    }
-
-    fn render_walk(turtle: &mut Turtle, walk: Walk8) {
-        let colors = ["red", "green", "blue"];
-        for (i, WalkAct { angle, distance }) in Walk8IterFull::new(&walk, false).enumerate() {
-            turtle.set_pen_color(colors[i % colors.len()]);
-            turtle.set_heading(angle);
-            turtle.forward(distance);
-        }
-    }
 }
