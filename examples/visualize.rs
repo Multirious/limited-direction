@@ -1,3 +1,11 @@
+//! Visualize the algorithm
+//!
+//! Key W: Extend length
+//! Key S: Shrink length
+//! Key A: Extend offset
+//! Key D: Shrink offset
+//! Key N: Cycle amount of directions
+
 use std::f64::consts::{PI, TAU};
 
 use macroquad::{
@@ -10,6 +18,20 @@ const BG: Color = color_u8!(30, 30, 40, 255);
 
 #[macroquad::main("Rigid Walk Visualizer")]
 async fn main() {
+    enum Algo {
+        Walk4,
+        Walk8,
+    }
+
+    impl Algo {
+        fn cycle(&self) -> Algo {
+            match self {
+                Algo::Walk4 => Algo::Walk8,
+                Algo::Walk8 => Algo::Walk4,
+            }
+        }
+    }
+
     let change_angle_speed = PI / 500.0;
     let change_distance_speed = 1.0f64;
     let change_offset_speed = 0.5f64;
@@ -17,6 +39,7 @@ async fn main() {
     let mut angle = 0.0f64;
     let mut distance = 300.0f64;
     let mut offset = 10.0f64;
+    let mut algorithm = Algo::Walk8;
     loop {
         clear_background(BG);
 
@@ -44,6 +67,9 @@ async fn main() {
         if is_key_down(KeyCode::D) {
             offset += change_offset_speed;
         }
+        if is_key_pressed(KeyCode::N) {
+            algorithm = algorithm.cycle();
+        }
 
         let mid_x = screen_width() / 2.0;
         let mid_y = screen_height() / 2.0;
@@ -60,7 +86,10 @@ async fn main() {
             color_u8!(75, 75, 75, 255),
         );
 
-        let walk = RigidWalk::walk8(angle, distance, offset);
+        let walk = match algorithm {
+            Algo::Walk4 => RigidWalk::walk4(angle, distance, offset),
+            Algo::Walk8 => RigidWalk::walk8(angle, distance, offset),
+        };
         draw_walk(mid_x, mid_y, &walk);
 
         next_frame().await

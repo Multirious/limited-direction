@@ -2,8 +2,11 @@
 name = "rigid_walk"
 version = "0.1.0"
 authors = ["Multirious"]
-description = "Walk to any angle and distance using rigid angle"
+description = "Find path to any direction and distance but with limited directions"
 edition = "2021"
+repository = "https://github.com/Multirious/rigid_walk"
+license = "MIT"
+categories = ["algorithms"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

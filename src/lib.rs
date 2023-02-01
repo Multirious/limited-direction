@@ -1,3 +1,11 @@
+//! My algorithm that find path to any direction and distance but with limited directions
+//! Seems to be support multiple directions but I'm not sure what is not supported.
+//!
+//! Read the code of the example to see keybindings.
+//! `cargo run --example visualize` to see visualization
+//! `cargo run --example snowflake` to see visualize multiple angle at once (It's kinda beautiful)
+
+/// Round `n` to the nearest multiple of `multiple`
 fn nearest_multiple(n: f64, multiple: f64) -> f64 {
     let mut result = n.abs() + multiple / 2.0;
     result -= result % multiple;
@@ -5,9 +13,6 @@ fn nearest_multiple(n: f64, multiple: f64) -> f64 {
     result
 }
 
-/// Meaning of:
-///  - Primary is the straight walking part
-///  - Secondary is the diagonal walking part
 #[derive(Debug)]
 pub struct RigidWalk {
     primary_angle: f64,
@@ -25,7 +30,7 @@ pub struct RigidWalk {
 impl RigidWalk {
     /// `angle` angle of direction to acheive in radian
     /// `displacement` is the displacement to achieve.
-    /// `offset` is amount of distance possible tangent offset to main "line".
+    /// `offset` is maximum distance relative to main line.
     pub fn new(
         primary_angle: f64,
         secondary_angle: f64,
@@ -79,11 +84,21 @@ impl RigidWalk {
         RigidWalkIterFull::new(self, start_primary)
     }
 
+    /// Walk in 8 direction of NSWE
     pub fn walk8(angle: f64, displacement: f64, offset: f64) -> RigidWalk {
         use std::f64::consts::{FRAC_PI_2, FRAC_PI_4};
 
         let primary_angle = nearest_multiple(angle, FRAC_PI_2);
         let secondary_angle = nearest_multiple(angle - FRAC_PI_4, FRAC_PI_2) + FRAC_PI_4;
+        RigidWalk::new(primary_angle, secondary_angle, angle, displacement, offset)
+    }
+
+    /// Walk in 4 direction of up, down, left, right
+    pub fn walk4(angle: f64, displacement: f64, offset: f64) -> RigidWalk {
+        use std::f64::consts::{FRAC_PI_2, PI};
+
+        let primary_angle = nearest_multiple(angle, PI);
+        let secondary_angle = nearest_multiple(angle - FRAC_PI_2, PI) + FRAC_PI_2;
         RigidWalk::new(primary_angle, secondary_angle, angle, displacement, offset)
     }
 }

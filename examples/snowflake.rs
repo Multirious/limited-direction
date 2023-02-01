@@ -1,3 +1,14 @@
+//! Visualize multiple angle at once
+//!
+//! Key W: Extend length
+//! Key S: Shrink length
+//! Key A: Extend offset
+//! Key D: Shrink offset
+//! Key Q: Decrease amount of angle by 1
+//! Key E: Increase amount of angle by 1
+//! Key Z: Show/Hide expected angle
+//! Key N: Cycle amount of directions
+
 use std::f64::consts::TAU;
 
 use macroquad::{
@@ -10,13 +21,28 @@ const BG: Color = color_u8!(30, 30, 40, 255);
 
 #[macroquad::main("Rigid Walk Snowflake")]
 async fn main() {
+    enum Algo {
+        Walk4,
+        Walk8,
+    }
+
+    impl Algo {
+        fn cycle(&self) -> Algo {
+            match self {
+                Algo::Walk4 => Algo::Walk8,
+                Algo::Walk8 => Algo::Walk4,
+            }
+        }
+    }
+
     let change_length_speed = 1.0f64;
     let change_offset_speed = 0.5f64;
 
-    let mut angles = 1u32;
+    let mut angles = 360 / 10u32;
     let mut show_angle = true;
-    let mut length = 100.0f64;
+    let mut length = 250.0f64;
     let mut offset = 10.0f64;
+    let mut algorithm = Algo::Walk8;
 
     loop {
         clear_background(BG);
@@ -25,9 +51,10 @@ async fn main() {
         let key_s = is_key_down(KeyCode::S);
         let key_a = is_key_down(KeyCode::A);
         let key_d = is_key_down(KeyCode::D);
-        let key_q = is_key_down(KeyCode::Q);
-        let key_e = is_key_down(KeyCode::E);
+        let key_q = is_key_pressed(KeyCode::Q);
+        let key_e = is_key_pressed(KeyCode::E);
         let key_z = is_key_pressed(KeyCode::Z);
+        let key_n = is_key_pressed(KeyCode::N);
         if key_w {
             length += change_length_speed;
         }
@@ -52,10 +79,12 @@ async fn main() {
         }
         if key_e {
             angles += 1;
-            show_angle = !show_angle;
         }
         if key_z {
             show_angle = !show_angle;
+        }
+        if key_n {
+            algorithm = algorithm.cycle();
         }
 
         let mid_x = screen_width() / 2.0;
@@ -63,9 +92,19 @@ async fn main() {
 
         let diff = TAU / (angles as f64);
 
+        if show_angle {
+            let mut curr_angle = 0.0f64;
+            for _ in 0..angles {
+                draw_line_angle(mid_x, mid_y, curr_angle, length, 1.0, GRAY);
+                curr_angle += diff;
+            }
+        }
         let mut curr_angle = 0.0f64;
         for _ in 0..angles {
-            let walk = RigidWalk::walk8(curr_angle, length, offset);
+            let walk = match algorithm {
+                Algo::Walk4 => RigidWalk::walk4(curr_angle, length, offset),
+                Algo::Walk8 => RigidWalk::walk8(curr_angle, length, offset),
+            };
             draw_walk(mid_x, mid_y, &walk);
             curr_angle += diff;
         }
@@ -86,19 +125,24 @@ fn draw_walk(x: f32, y: f32, walk: &RigidWalk) {
         let y2 = y1 + angle.cos() * distance;
         turtle_x += angle.sin() * distance;
         turtle_y += angle.cos() * distance;
-        draw_stump_line(
+        draw_line(
             x1 as f32,
             y1 as f32,
             x2 as f32,
             y2 as f32,
-            5.0,
+            1.0,
             color[i % color.len()],
         );
     }
 }
 
-fn draw_stump_line(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32, color: Color) {
-    draw_circle(x1, y1, thickness / 2.0, color);
-    draw_circle(x2, y2, thickness / 2.0, color);
-    draw_line(x1, y1, x2, y2, thickness, color);
+fn draw_line_angle(x: f32, y: f32, angle: f64, length: f64, thickness: f32, color: Color) {
+    draw_line(
+        x,
+        y,
+        x + (angle.sin() * length) as f32,
+        y + (angle.cos() * length) as f32,
+        thickness,
+        color,
+    );
 }
