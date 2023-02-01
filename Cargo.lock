@@ -187,6 +187,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
 
 [[package]]
+name = "limited_direction"
+version = "0.1.1"
+dependencies = [
+ "macroquad",
+]
+
+[[package]]
 name = "macroquad"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -342,13 +349,6 @@ dependencies = [
  "libc",
  "quad-alsa-sys",
  "winapi",
-]
-
-[[package]]
-name = "rigid_walk"
-version = "0.1.0"
-dependencies = [
- "macroquad",
 ]
 
 [[package]]

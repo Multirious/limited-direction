@@ -15,6 +15,9 @@ fn nearest_multiple(n: f64, multiple: f64) -> f64 {
 
 #[derive(Debug)]
 pub struct RigidWalk {
+    angle: f64,
+    displacement: f64,
+
     primary_angle: f64,
     secondary_angle: f64,
 
@@ -55,6 +58,8 @@ impl RigidWalk {
         let last_secondary_distance = last_offset / secondary_angle_rel.sin();
 
         RigidWalk {
+            angle,
+            displacement,
             primary_angle,
             secondary_angle,
             secondary_segment_distance,
@@ -181,6 +186,21 @@ impl<'a> Iterator for RigidWalkIterFull<'a> {
         }
         let (angle, distance) = match self.state {
             WalkIterState::MainStart => {
+                // valid angle where the angle is actually either primary or secondary angle itself. Which broken the math.
+                if self.walk.angle == self.walk.primary_angle {
+                    self.state = WalkIterState::Stop;
+                    return Some(WalkAct {
+                        angle: self.walk.primary_angle,
+                        distance: self.walk.displacement,
+                    });
+                } else if self.walk.angle == self.walk.secondary_angle {
+                    self.state = WalkIterState::Stop;
+                    return Some(WalkAct {
+                        angle: self.walk.secondary_angle,
+                        distance: self.walk.displacement,
+                    });
+                };
+
                 if self.n_left == 0 {
                     self.state = WalkIterState::LastEnd;
                     let (angle, distance) = if self.start_primary {

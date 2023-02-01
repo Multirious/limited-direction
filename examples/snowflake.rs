@@ -11,11 +11,11 @@
 
 use std::f64::consts::TAU;
 
+use limited_direction::{RigidWalk, WalkAct};
 use macroquad::{
     input::{is_key_pressed, KeyCode},
     prelude::*,
 };
-use rigid_walk::{RigidWalk, WalkAct};
 
 const BG: Color = color_u8!(30, 30, 40, 255);
 
