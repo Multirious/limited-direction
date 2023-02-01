@@ -1,4 +1,4 @@
-# limited_direction
+# limited-direction
 
 My algorithm that find path to any direction and distance but with limited directions
 Seems to be support multiple directions but I'm not sure what is not supported.
